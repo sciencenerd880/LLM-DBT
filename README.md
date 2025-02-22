@@ -26,7 +26,11 @@ CS606 Generative AI with LLMs
     ```
 
 ## Running the script
+0. Make the necessary changes in terms of model, refer to this link https://docs.litellm.ai/docs/providers/text_completion_openai, https://docs.aimlapi.com/api-overview/model-database/text-models?utm_source=aimlapi&utm_medium=github&utm_campaign=integration
+
+Some of the models defined at src/config.py includes "gpt-4", "o1-mini", "o1-preview", "gpt-3.5-turbo"
 1. Run the main script:
     ```sh
     python src/main.py
     ```
+

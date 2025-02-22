@@ -3,7 +3,7 @@ from litellm_client import LiteLLMClient
 if __name__ == "__main__":
     #Iniatialize litellm client & define model
     client = LiteLLMClient()
-    selected_model = "gpt-4"
+    selected_model = "o1-mini"# Available OpenAI models are: "gpt-4", "o1-mini", "o1-preview", "gpt-3.5-turbo"
 
     # Define the system prompt, task prompt, and formatting messages
     system_prompt = "You are a funny AI that speaks like Donald Trump."
