@@ -25,7 +25,7 @@ CS606 Generative AI with LLMs
     DEEPSEEK_API_KEY="your_deepseek_api_key"
     ```
 
-## Running the script
+## Running the Inference Script 
 0. Make the necessary changes in terms of model, refer to this link https://docs.litellm.ai/docs/providers/text_completion_openai, https://docs.aimlapi.com/api-overview/model-database/text-models?utm_source=aimlapi&utm_medium=github&utm_campaign=integration
 
 Some of the models defined at src/config.py includes "gpt-4", "o1-mini", "o1-preview", "gpt-3.5-turbo"
@@ -34,3 +34,14 @@ Some of the models defined at src/config.py includes "gpt-4", "o1-mini", "o1-pre
     python src/main.py
     ```
 
+
+## Running the RAG process 
+1. Run the 'indexer.py' to split the desired pdf into chunks and generate the embeddings into the specified embedding model and store into milvus db collection:
+    ```sh
+    python src/rag_pipeline/indexer.py
+    ```
+
+2. To get the top k results from the milvus client collection based on query, run the following:
+    ```sh
+    python src/rag_pipeline/retriever.py
+    ```

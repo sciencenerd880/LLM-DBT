@@ -1,2 +1,7 @@
 litellm
 python-dotenv
+langchain_community
+pypdf
+langchain-text-splitters
+sentence-transformers
+pymilvus
