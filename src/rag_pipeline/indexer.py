@@ -1,4 +1,6 @@
 """
+Reference: https://huggingface.co/learn/cookbook/en/rag_with_hf_and_milvus
+
 Description: indexer.py
 - Loads the PDFs stored at ./data/submitted_docs/
 - Splits each of the PDF into overlapping text chunks
@@ -8,6 +10,7 @@ Description: indexer.py
 """
 
 import os
+
 import uuid
 from datetime import datetime
 from langchain_community.document_loaders import PyPDFLoader

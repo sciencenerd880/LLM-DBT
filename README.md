@@ -45,3 +45,80 @@ Some of the models defined at src/config.py includes "gpt-4", "o1-mini", "o1-pre
     ```sh
     python src/rag_pipeline/retriever.py
     ```
+
+
+## Starting the Evaluation using DeepEval framework
+ 1. On your terminal, the UI will be opened after running the following command:
+    ```sh
+    deepeval login
+    ```
+2. Sign in accordingly as per recommendation to to use work email for login access. 
+3. Paste your API Key: XXXXX. You should see the following messages
+    ```sh
+🎉🥳 Congratulations! You've successfully logged in! 🙌 
+You're now using DeepEval with Confident AI. Follow our quickstart tutorial 
+here: https://docs.confident-ai.com/confident-ai/confident-ai-introduction
+    ```
+4. Run the sample test case via:
+    ```sh
+deepeval test run src/rag_pipeline/test_evaluation.py
+    ```
+
+Note: If you have not set the OpenAI key, then export it on your terminal via: 
+    ```sh
+export OPENAI_API_KEY=XXXX
+    ```
+
+5. This is the expected via of the evaluation:
+
+```sh
+
+Evaluating 1 test case(s) in parallel: |█|100% (1/1) [Time Taken: 00:03,  3.78
+.Running teardown with pytest sessionfinish...
+
+============================ slowest 10 durations ============================
+3.81s call     src/rag_pipeline/test_evaluation.py::test_answer_relevancy
+
+(2 durations < 0.005s hidden.  Use -vv to show these durations.)
+1 passed, 3 warnings in 3.82s
+                                 Test Results                                 
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃                ┃                ┃                ┃        ┃ Overall        ┃
+┃ Test case      ┃ Metric         ┃ Score          ┃ Status ┃ Success Rate   ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+│ test_answer_r… │                │                │        │ 100.0%         │
+│                │ Answer         │ 1.0            │ PASSED │                │
+│                │ Relevancy      │ (threshold=0.… │        │                │
+│                │                │ evaluation     │        │                │
+│                │                │ model=gpt-4o,  │        │                │
+│                │                │ reason=The     │        │                │
+│                │                │ score is 1.00  │        │                │
+│                │                │ because the    │        │                │
+│                │                │ actual output  │        │                │
+│                │                │ flawlessly     │        │                │
+│                │                │ addresses the  │        │                │
+│                │                │ question       │        │                │
+│                │                │ regarding shoe │        │                │
+│                │                │ fit, with no   │        │                │
+│                │                │ irrelevant     │        │                │
+│                │                │ statements     │        │                │
+│                │                │ distracting    │        │                │
+│                │                │ from the       │        │                │
+│                │                │ topic.         │        │                │
+│                │                │ Excellent      │        │                │
+│                │                │ job!,          │        │                │
+│                │                │ error=None)    │        │                │
+│ Note: Use      │                │                │        │                │
+│ Confident AI   │                │                │        │                │
+│ with DeepEval  │                │                │        │                │
+│ to analyze     │                │                │        │                │
+│ failed test    │                │                │        │                │
+│ cases for more │                │                │        │                │
+│ details        │                │                │        │                │
+└────────────────┴────────────────┴────────────────┴────────┴────────────────┘
+Total estimated evaluation tokens cost: 0.0037350000000000005 USD
+✓ Tests finished 🎉! View results on 
+https://app.confident-ai.com/project/cm7k4hv8d5q5k7advs35m4pl5/evaluation/test-runs/cm7k5
+119t00d6qyy0o7ywn80r/test-cases.
+
+```
