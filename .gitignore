@@ -2,3 +2,9 @@
 *.pyc
 *.db
 .deepeval*
+*/test_data/*
+
+*.bin
+*.json
+*.DS_store
+*.sqlite3

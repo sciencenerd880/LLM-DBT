@@ -54,20 +54,20 @@ Some of the models defined at src/config.py includes "gpt-4", "o1-mini", "o1-pre
     ```
 2. Sign in accordingly as per recommendation to to use work email for login access. 
 3. Paste your API Key: XXXXX. You should see the following messages
-    ```sh
+```sh
 🎉🥳 Congratulations! You've successfully logged in! 🙌 
 You're now using DeepEval with Confident AI. Follow our quickstart tutorial 
 here: https://docs.confident-ai.com/confident-ai/confident-ai-introduction
-    ```
+```
 4. Run the sample test case via:
-    ```sh
+```sh
 deepeval test run src/rag_pipeline/test_evaluation.py
-    ```
+```
 
 Note: If you have not set the OpenAI key, then export it on your terminal via: 
-    ```sh
+ ```sh
 export OPENAI_API_KEY=XXXX
-    ```
+ ```
 
 5. This is the expected via of the evaluation:
 
