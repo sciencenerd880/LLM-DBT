@@ -7,9 +7,9 @@ Description: indexer.py
 from pymilvus import MilvusClient
 from sentence_transformers import SentenceTransformer
 
-milvus_client = MilvusClient(uri="././milvus_data/test.db"
+milvus_client = MilvusClient(uri="././milvus_data/2025_budget.db"
                              )
-collection_name = "sharktank_v1"
+collection_name = "sg_budget"
 
 # Check if the collection exists
 if not milvus_client.has_collection(collection_name):
@@ -23,9 +23,8 @@ def emb_text(text):
                                   normalize_embeddings=True).tolist()[0]
 
 if __name__ == "__main__":
-    question = "when was the white paper released?"
-    #question = "under the estimated financial impact of proposal, find out the estiamted impact of the proposal on appropriations for the budget line 02 01 30 01 for year 2023"
-    
+    question = "what is singapore's economy growth?"
+    topk = 3
     # Search parameters
     search_params = {"metric_type": "IP", 
                      "params": {"nprobe": 10}}
@@ -33,7 +32,7 @@ if __name__ == "__main__":
     search_res = milvus_client.search(
         collection_name=collection_name,
         data=[emb_text(question)],  # Use the emb_text function to convert the question to an embedding vector
-        limit=3,  # Return top 3 results
+        limit=topk,  # Return top k results
         search_params=search_params,
         output_fields=["text"],  # Return the text field
         )

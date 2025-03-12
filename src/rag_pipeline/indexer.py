@@ -28,10 +28,10 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 # Initialize Milvus client
-milvus_client = MilvusClient(uri="././milvus_data/test.db")
+milvus_client = MilvusClient(uri="././milvus_data/2025_budget.db")
 
 # Define my collection name (versioned for tracking)
-COLLECTION_NAME = "sharktank_v1"
+COLLECTION_NAME = "sg_budget"
 
 def emb_text(text):
     """Generate embedding for a given text chunk."""
@@ -93,7 +93,7 @@ def process_pdf(pdf_path):
 
 if __name__ == "__main__":
     # Path to uploaded PDFs
-    pdf_folder = "./data/"
+    pdf_folder = "./data/sg_budget/"
     
     # Process all PDFs in the folder
     for pdf_file in os.listdir(pdf_folder):
