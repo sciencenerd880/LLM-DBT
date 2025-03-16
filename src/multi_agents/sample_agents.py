@@ -16,7 +16,7 @@ local_agent = Agent(
     tools=[DuckDuckGoTools()],
     markdown=True
 )
-food_agent = Agnet(
+food_agent = Agent(
     model=OpenAIChat(id="gpt-4o"),
     description="You are a Singapore local food expert in hawker centre and fine dining",
     instructions=[
