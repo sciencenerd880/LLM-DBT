@@ -1,12 +1,23 @@
 """
+This is an implementation of an agentic RAG using agno library package and Groq as our LLM API provider. 
+Open Source LLM provider like HuggingFace is also possible.
+The assumption of this system is where the data sources are PDFs stored in GitHub Repo (for simplicity) instead of Cloud DB.
+
+The package itself is agnostic to model and LLM service provider, feel free to make the necessary changes.
+Agno also allows interfaces to various vector db providers besides ChromaDB such as Pinecone, LanceDB, etc. 
+============================================================================================================================================================================
+
 USAGE AS FOLLOWS:
+0) Ensure that your .env environmental variables is created. For this case, we need GROQ_API_KEY=XXXX inside .env file
 1) Set the necessary variables
 2) Comment out knowledge_base.load(recreate=False) if already vectorized into the DB
-
+3) Choose one of the chunking type, and copy paste into your terminal
 export CHUNKING_TYPE="fixed" or 
 export CHUNKING_TYPE="agentic" or 
 export CHUNKING_TYPE="semantic"
-python pdf_rag.py
+4) run the following command to execute: 
+
+python src/agno_agents/pdf_rag.py
 """
 
 import typer
@@ -32,6 +43,7 @@ import os
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+
 
 # Define PDF RAG agent storage file & table name
 agent_storage_file: str = "tmp/pdf_rag.db"
@@ -98,7 +110,7 @@ def pdf_agent(user: str = "user", groq_model: str = "deepseek-r1-distill-llama-7
         knowledge=knowledge_base
     )
     
-    print("\n Agent Setup Complete 🚀")
+    print("\n RAG Agent Setup Complete!! ")
     print(f"\n Using Model: {groq_model}")
     print(f"\n Chunking Method: {chunking_type_name.upper()}")
     print(f"\n Storing vectors in: {collection_name} (ChromaDB)")
