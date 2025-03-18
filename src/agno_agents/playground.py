@@ -1,5 +1,10 @@
+"""
+reference here
+"""
+
 from agno.agent import Agent  # type: ignore
 from agno.models.openai import OpenAIChat  # type: ignore
+from agno.models.xai import xAI
 from agno.playground import Playground, serve_playground_app  # type: ignore
 from agno.storage.agent.sqlite import SqliteAgentStorage
 from agno.tools.duckduckgo import DuckDuckGoTools
@@ -11,16 +16,37 @@ load_dotenv()
 agent_storage: str = "db/playground.db"
 
 # https://docs.agno.com/get-started/playground
+# web_agent = Agent(
+#     name="Web Agent",
+#     model=OpenAIChat(id="gpt-4o"),
+#     tools=[DuckDuckGoTools()],
+#     instructions=["常に情報源を含めてください。"],
+#     storage=SqliteAgentStorage(table_name="web_agent", db_file=agent_storage),
+#     add_datetime_to_instructions=True,
+#     add_history_to_messages=True,
+#     num_history_responses=5,
+#     markdown=True,
+# )
+# Create web search agent
 web_agent = Agent(
-    name="Web Agent",
-    model=OpenAIChat(id="gpt-4o"),
+    name="Web Search Agent",
+    role="Search the web for accurate and up-to-date information",
+    model=xAI(id="grok-beta"),
     tools=[DuckDuckGoTools()],
-    instructions=["常に情報源を含めてください。"],
-    storage=SqliteAgentStorage(table_name="web_agent", db_file=agent_storage),
+    instructions=[
+        "Always include sources and citations",
+        "Verify information from multiple sources when possible",
+        "Present information in a clear, structured format",
+    ],
+    show_tool_calls=True,
+    markdown=True,
+    monitoring=True,  # Enable monitoring for better debugging
+
     add_datetime_to_instructions=True,
     add_history_to_messages=True,
     num_history_responses=5,
-    markdown=True,
+    storage=SqliteAgentStorage(table_name="web_agent", db_file=agent_storage),
+
 )
 
 finance_agent = Agent(
