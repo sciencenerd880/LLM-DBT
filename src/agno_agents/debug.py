@@ -9,23 +9,23 @@
 # for param in agent_signature.parameters.values():
 #     print(f"- {param.name}: {param.annotation} (default: {param.default})")
 
+#================================================
 
+# ## Checking of chromadb collection exists or not 
+# from agno.vectordb.chroma import ChromaDb
 
-## Checking of chromadb collection exists or not 
-from agno.vectordb.chroma import ChromaDb
+# # Initialize ChromaDB connection
+# db = ChromaDb(collection="recipes")
 
-# Initialize ChromaDB connection
-db = ChromaDb(collection="recipes")
+# ## Check if the "recipes" collection exists
+# try:
+#     client = db.client  # Access underlying ChromaDB client
+#     print("Existing collections:", client.list_collections())
+# except AttributeError:
+#     print("Error: Could not access ChromaDB client. Check if the database is initialized properly.")
 
-## Check if the "recipes" collection exists
-try:
-    client = db.client  # Access underlying ChromaDB client
-    print("Existing collections:", client.list_collections())
-except AttributeError:
-    print("Error: Could not access ChromaDB client. Check if the database is initialized properly.")
+# from inspect import signature
+# from agno.vectordb.chroma import ChromaDb
 
-from inspect import signature
-from agno.vectordb.chroma import ChromaDb
-
-# Print the constructor's parameter list
-print(signature(ChromaDb.__init__))
+# # Print the constructor's parameter list
+# print(signature(ChromaDb.__init__))
