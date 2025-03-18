@@ -16,18 +16,7 @@ local_agent = Agent(
     tools=[DuckDuckGoTools()],
     markdown=True
 )
-food_agent = Agent(
-    model=OpenAIChat(id="gpt-4o"),
-    description="You are a Singapore local food expert in hawker centre and fine dining",
-    instructions=[
-        "Search your knowledge base for famous food places in Singapore",
-        "If the quetion is better suited for the web, search the web to fill in the gaps",
-        "Prefer the information in your knowledge base over the web results",
-    ],
-    knowledge=PDFUrlKnowledgeBase(
-        urls="xx"
-    )
 
 query = "what is the latest local food recommendation"
-agent.print_response(query)
+local_agent.print_response(query)
 
