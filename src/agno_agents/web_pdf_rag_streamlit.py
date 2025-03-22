@@ -83,7 +83,7 @@ st.success("✅ Knowledge base loaded!")
 # ========================================================
 # Chat Interface with Streaming Effect
 # ========================================================
-st.subheader("💬 Ask a Question")
+st.subheader("💬 Provide your Product Facts and some description so that I can turn it into an effective Business Pitch to the sharks")
 
 user_input = st.text_input("Enter your question:")
 if st.button("Ask"):
