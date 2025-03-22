@@ -30,6 +30,16 @@ REFERENCE_MODELS = [
     'mistral-saba-24b'
 ]
 
+EDIT_REFERENCE_MODELS = [
+    'qwen-qwq-32b',
+    # 'gemma2-9b-it',
+    'deepseek-r1-distill-llama-70b',
+    'llama3-70b-8192',
+    # 'mixtral-8x7b-32768',
+    'deepseek-r1-distill-qwen-32b', 
+    'mistral-saba-24b'
+]
+
 # Other setups
 agent_storage: str = "tmp/agents.db"
 
@@ -70,21 +80,23 @@ def metrics_calculation(metric):
     return input_length, output_length, latency
 
 class OrchestratorResponse(BaseModel):
+    """Data structure to standardize the orchestrator response"""
     goal: str = Field(..., description="The main objective to be achieved.")
     subtasks: List[dict] = Field(..., description="List of dynamically generated subtasks.")
 
 class SysthesizerResponse(BaseModel):
+    """Data structure to standardize the synthesizer response"""
     Pitch: str = Field(..., description="The well structured pitch.")
     Initial_Offer: dict = Field(..., description="initial offer details.")
 
 class PitchOrchestrator:
+    """Basic pitch orchestrator without RAG elements"""
     def __init__(self, orchestrator="llama-3.3-70b-versatile", reference=REFERENCE_MODELS):
         self.agents = {}
         self.logs = []
         self.orchestrator = orchestrator
         self.reference = reference
-        # self.subtask_agent = self.create_subtask_agent()
-        # self.synthesizer_agent = self.create_synthesizer_agent()
+        self.toolbox_mapping = {tool.name:tool for tool in self.tool_box()}
 
     def create_subtask_agent(self):
         """Instantiates the agent for orchestrating"""
@@ -110,16 +122,14 @@ class PitchOrchestrator:
         )
         return synthesizer
     
-    def tool_box():
+    def tool_box(self):
         """Contains the tools that are available to the agent"""
-        return [DuckDuckGoTools()]
+        return [DuckDuckGoTools(), WikipediaTools()]
 
-    def generate_subtasks(self, goal, facts, have_tools=False):
+    def generate_subtasks(self, goal, facts):
         """Use an agent to break the main goal into subtasks dynamically."""
         subtask_agent = self.create_subtask_agent()
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
-        if have_tools:
-            prompt += f"You have the following tools at your disposal: [{','.join(self.tool_box())}]\nAssign them to your subtask strategically, and ensure they use these tools."
         prompt += """Format your response as valid JSON without the json markdown:
         {
             "goal": "...",
@@ -161,10 +171,6 @@ class PitchOrchestrator:
                 storage=SqliteAgentStorage(table_name="agent_name", db_file=agent_storage),
                 add_datetime_to_instructions=True,
                 add_history_to_messages=False,
-                # newly added here
-                tools=self.tool_box(),
-                show_tool_calls=True, #comment if not needed
-                debug_mode=True, #comment if not needed
             )
 
     def run_agents(self, subtasks):
@@ -220,3 +226,123 @@ class PitchOrchestrator:
         agent_outputs = self.run_agents(subtasks)
         time.sleep(1)
         return self.synthesize_pitch(agent_outputs)
+
+class PitchEditor(PitchOrchestrator):
+    """Pitch orchestrator with editing loop but without RAG elements"""
+    def __init__(self, orchestrator="llama-3.3-70b-versatile", reference=REFERENCE_MODELS, editor='llama3-70b-8192', iterations=2):
+        super().__init__(orchestrator=orchestrator, reference=reference)
+        self.editor = editor
+        self.iterations = iterations
+    
+    def create_editor_agent(self):
+        instruction = """Given a pitch for a sharktank viewing. Give 2-3 points of feedback. Do not introduce new facts. 
+        Answer shortly in the following format:
+        - ...
+        - ...
+        """
+        editor = Agent(
+            name="Pitch Editor", 
+            model=Groq(id=self.editor, max_tokens=1024),
+            instructions=instruction,
+            storage=SqliteAgentStorage(table_name="director_agent", db_file=agent_storage),
+            add_datetime_to_instructions=True,
+            add_history_to_messages=False,
+        )
+        return editor
+
+    def edit_pitch(self, pitch):
+        """Give feedback on how to improve the pitch"""
+        self.editor_agent = self.create_editor_agent()
+        editor_prompt = f"""here is the pitch: {pitch}. Give short pointers."""
+        editor_response = self.editor_agent.run(editor_prompt)
+        self.logs.append(editor_response.metrics)
+        return_prompt = f"""Edit a pitch with the given facts. With this pitch: {pitch}. {editor_response.content}."""
+        return return_prompt
+    
+    def orchestrate_with_edit(self, goal, facts, verbose=False, have_tools=True):
+        """Full pipeline: generate subtasks, create agents, execute, and synthesize pitch."""
+        try:
+            for i in tqdm(
+                range(self.iterations), 
+                bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}', 
+                desc="Running Pitch Editing Iterations",
+                colour='yellow'
+            ):
+                subtasks = self.generate_subtasks(goal, facts, have_tools=have_tools)
+                if verbose:
+                    print("\t>>> Subtasks:", subtasks)
+                time.sleep(1)
+                self.create_agents(subtasks, facts)
+                time.sleep(1)
+                agent_outputs = self.run_agents(subtasks)
+                if verbose:
+                    print("\t>>> Agent Outputs:", agent_outputs)
+                time.sleep(1)
+                pitch_initial_offer = self.synthesize_pitch(agent_outputs)
+                if verbose:
+                    print("\t>>> Pitch Draft:", pitch_initial_offer)
+                time.sleep(1)
+                if i != self.iterations - 1:
+                    goal = self.edit_pitch(pitch_initial_offer)
+                    if verbose:
+                        print("\t>>> New goal:", goal)
+                    time.sleep(1)
+        except Exception as e:
+            print(e, "for case:", facts['product_description'])
+            return ""
+        return pitch_initial_offer
+
+class PitchEquipped(PitchEditor):
+    def generate_subtasks(self, goal, facts, have_tools=False):
+        """Use an agent to break the main goal into subtasks dynamically and assign tools."""
+        subtask_agent = self.create_subtask_agent()
+        tools_available = self.tool_box() if have_tools else []
+
+        prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
+        if tools_available:
+            tool_names = [tool.name for tool in tools_available]  # Convert tool objects to string
+            prompt += f"You have the following tools at your disposal: {tool_names}\nAssign them to your subtasks strategically."
+
+        prompt += """ Format your response as valid JSON without the json markdown:
+        {
+            "goal": "...",
+            "subtasks": [
+                {
+                    "name": "...",
+                    "description": "...",
+                    "assigned_tools": ["...", "..."]
+                }
+            ]
+        }"""
+        subtask_response = subtask_agent.run(prompt)
+
+        # Log responses:
+        self.logs.append(subtask_response.metrics)
+
+        # Validate and parse response using Pydantic
+        try:
+            content = subtask_response.content.replace("`", "").replace("json", "").strip()
+            structured_output = OrchestratorResponse.model_validate_json(content)
+        except Exception as e:
+            print("Parsing Error:", e)
+            print("Response:", subtask_response.content)
+            raise ValueError("Invalid response format from subtask agent.")
+
+        return structured_output.subtasks
+
+    def create_agents(self, subtasks, facts):
+        """Create agents dynamically based on subtasks and assign tools accordingly."""
+        for i, subtask in enumerate(subtasks):
+            agent_name = f"{i}"
+            assigned_tools = [tool for tool in self.tool_box() if tool.name in subtask.get("assigned_tools", [])]
+
+            self.agents[agent_name] = Agent(
+                name=agent_name, 
+                model=Groq(id=random.choice(self.reference), max_tokens=512),  # limit agent output
+                instructions=f"Given these facts: {facts}\nDo not hallucinate. Ensure strict adherence to facts. Keep it short.\n{subtask['name']}",
+                storage=SqliteAgentStorage(table_name=agent_name, db_file=agent_storage),
+                add_history_to_messages=False,
+                tools=assigned_tools,  # Assign dynamically selected tools
+                # show_tool_calls=True,
+                # debug_mode=True,
+            )
