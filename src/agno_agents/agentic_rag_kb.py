@@ -1,9 +1,15 @@
+'''
+Single Agnetic RAG with tools (WORKING VERSION)
+'''
+
 from textwrap import dedent
 from typing import Dict
+import random
 
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.models.groq import Groq
+from agno.models.litellm import LiteLLM
 
 from dotenv import load_dotenv
 import os
@@ -23,6 +29,9 @@ from agno.document.chunking.fixed import FixedSizeChunking
 from agno.document.chunking.agentic import AgenticChunking
 from agno.document.chunking.semantic import SemanticChunking
 
+from agno.tools.calculator import CalculatorTools
+from agno.tools.duckduckgo import DuckDuckGoTools
+
 # from agno.embedder.huggingface import HuggingfaceCustomEmbedder
 # ======================================================== START: TO SET THE VARIABLES  ========================================================
 # Load environment variables from .env file
@@ -35,7 +44,21 @@ os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 MODEL_PROVIDERS = {
     "openai": OpenAIChat,
     "groq": Groq,
+    "litellm": LiteLLM
 }
+
+DDG = DuckDuckGoTools()
+
+calculator_tool= CalculatorTools(
+                add=True,
+                subtract=True,
+                multiply=True,
+                divide=True,
+                exponentiate=True,
+                factorial=True,
+                is_prime=True,
+                square_root=True,
+                 )
 
 def load_knowledge_base(
     pdf_urls: list[str] = None,
@@ -117,36 +140,39 @@ def create_pitch_agent(provider: str = "groq", model_name: str = "deepseek-r1-di
         instructions=dedent("""\
             ### Your Task:
             1. Search the knowledge base for relevant information to assist in your task. Do not make up things that you do not know.
-            2. Write a **persuasive startup pitch** that effectively highlights:
-               - The product’s unique value proposition
-               - The market opportunity and competitive edge
-               - The potential for growth and profitability
-               - A call to action for investors
+            2. Using the provided duckduckgo tool, use the function duckduckgo_search and function duckduckgo_news to find out the latest market trends in 2025.
+            3. Write a **persuasive startup pitch** that effectively highlights:
+               - The product’s unique value proposition.
+               - The market opportunity and competitive edge.
+               - The potential for growth and profitability.
+               - A call to action for investors.
 
-            3. Propose an **initial offer to investors** that:
-               - Raises as much equity as possible
-               - Minimizes the stake given to investors
-               - Includes key terms (e.g., valuation, percentage equity offered, funding amount)
+            4. Propose an **initial offer to investors** that:
+               - Raises as much equity as possible.
+               - Minimizes the stake given to investors.
+               - Includes key terms (e.g., valuation, percentage equity offered, funding amount).
+               - To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
 
-            4. Return a well-structured response in valid JSON format.
+            5. Return a well-structured response in valid JSON format. **WARNING**: Ensure you follow the ### Response Format.
             ### Response Format
-            Return your response strictly in valid JSON format with the following structure:
+            Return your response STRICTLY in valid JSON format with the following structure:
             {{
                 "Pitch": "Your well-structured investment pitch here...",
                 "Initial_Offer": {{
                     "Valuation": "Estimated company valuation (e.g., $10 million)",
-                    "Equity_Offered": "Percentage of equity offered to investors (e.g., 10%)",
+                    "Equity_Offered": "Stated % Percentage of equity offered to investors (e.g., 10%)",
                     "Funding_Amount": "The amount of funding requested (e.g., $1 million)",
                     "Key_Terms": "Any additional key terms (optional)"
                 }}
             }}
             """),
         add_datetime_to_instructions=True,
-        show_tool_calls=False,
+        show_tool_calls=True,
+        tools=[calculator_tool, DDG],
         knowledge= HBS_knowledge_base,
-        search_knowledge=True,
-        debug_mode=True,
-        reasoning=True
+        search_knowledge=True, # not really required, agent will set as True
+        # debug_mode=True, # comment to have cleanre terminal printing
+        add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
     )
     
     return pitch_agent
@@ -162,26 +188,31 @@ if __name__ == "__main__":
         facts_dict = json.loads(f.read())
 
     ##1 Get the product keys/scenario :5 for first 5, : for all
-    scenarios = list(facts_dict.keys())[:1]
+    scenarios = list(facts_dict.keys())[:]
+    
+    ## Random sampling
+    N = 1000
+    N = min(N, len(scenarios))  # to avoid ValueError
+    scenarios = random.sample(scenarios, N)
 
     ##2 Framework
-    framework = "level1_agent_rag_reasoning"
+    framework = "rand_agentic_rag_reasoning_tools"
 
     ##3 Layer - what is this???
     layer = "N/A"
 
     ##4 Model_name = LLM service provider name & model name
-    provider = "groq"  # Change to "openai"
+    
+    #Change to "openai", "litellm", or "groq"
+    provider = "groq"
     # model_id_list = ["deepseek-r1-distill-llama-70b","deepseek-r1-distill-qwen-32b", "gemma2-9b-it", "llama-3.3-70b-versatile","llama3-70b-8192","mistral-saba-24b","qwen-qwq-32b"]
     # model_id_list = ["deepseek-r1-distill-llama-70b","deepseek-r1-distill-qwen-32b", "gemma2-9b-it", "llama-3.3-70b-versatile","mistral-saba-24b","qwen-qwq-32b"]
-    # model_id_list = ["deepseek-r1-distill-llama-70b"] #done
-    # model_id_list = ["deepseek-r1-distill-qwen-32b"] #done
-    # model_id_list = ["gemma2-9b-it"] # failed at 75%
-    # model_id_list = ["llama-3.3-70b-versatile"] #cannot rag?
-    # model_id_list = ["llama3-70b-8192"]
-    # model_id_list = ["qwen-qwq-32b"] #done
 
-    model_id_list = ["deepseek-r1-distill-llama-70b", "deepseek-r1-distill-qwen-32b", "qwen-qwq-32b"]
+    model_id_list = ["deepseek-r1-distill-llama-70b", "deepseek-r1-distill-qwen-32b", "qwen-qwq-32b"] # these are the models can do rag
+    # model_id_list = ["qwen-qwq-32b"] 
+    # model_id_list = ["huggingface/Qwen/QwQ-32B"]
+    # model_id_list = ["llama3-70b-8192"]
+    model_id_list = ["deepseek-r1-distill-llama-70b"]
     results = []
     for i, model_id in enumerate(model_id_list):
 
