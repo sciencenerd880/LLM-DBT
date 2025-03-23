@@ -25,8 +25,43 @@ os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 # ========================================================
 # Streamlit UI Header
 # ========================================================
-st.title("📄 AI-Powered PDF RAG Chatbot")
-st.markdown("Upload PDFs or use existing GitHub-hosted documents to ask AI-powered questions.")
+st.title("📄 MITB (Multi-Agent Intelligence for Tackling Business pitches) Chatbot")
+st.markdown("### 🚀 Welcome to MITB Chatbot! This chatbot is designed to generate business pitches from your information.")
+
+# ========================================================
+# Streamlit Sidebar
+# ========================================================
+st.sidebar.title("ℹ️ Instructions")
+
+# Instructions
+st.sidebar.markdown(
+    """
+    1. **Upload PDFs**: Upload PDFs or use existing GitHub-hosted documents.
+    2. **Choose Chunking Strategy**: Choose a chunking strategy for the PDFs.
+    3. **Enter your pitch**: Provide your product facts and description to generate a business pitch.
+    4. **Click Ask**: Click the button to generate a business pitch.
+    """
+)
+
+
+# ========================================================
+# Set Model
+# ========================================================
+st.subheader("📑 Choose Model for Inference")
+
+groq_model_name = st.selectbox("🧠 Select LLM Model", ["deepseek-r1-distill-llama-70b", "llama3-70b-8192"])
+
+# ========================================================
+# Choose Chunking Strategy
+# ========================================================
+st.subheader("📑 Choose Chunking Strategy for PDFs")
+
+chunking_options = {
+    "Fixed": FixedSizeChunking(),
+    "Agentic": AgenticChunking(),
+    "Semantic": SemanticChunking(),
+}
+chunking_type_name = st.selectbox("🔍 Choose Chunking Strategy", list(chunking_options.keys()))
 
 # ========================================================
 # User Input: Upload PDF or Use GitHub PDFs
@@ -36,17 +71,14 @@ pdf_urls = [
     "https://raw.githubusercontent.com/sciencenerd880/LLM-DBT/main/data/pdfs/hbs_pitchdeck_sample.pdf",
 ]
 
+st.subheader("📂 Upload PDFs to enhance RAG")
+
 uploaded_files = st.file_uploader("📂 Upload PDFs", accept_multiple_files=True, type=["pdf"])
 
 # ========================================================
 # Choose Chunking Strategy
 # ========================================================
-chunking_options = {
-    "fixed": FixedSizeChunking(),
-    "agentic": AgenticChunking(),
-    "semantic": SemanticChunking(),
-}
-chunking_type_name = st.selectbox("🔍 Choose Chunking Strategy", list(chunking_options.keys()))
+
 chunking_type = chunking_options[chunking_type_name]
 
 # ========================================================
@@ -64,7 +96,7 @@ knowledge_base = PDFUrlKnowledgeBase(urls=pdf_urls, vector_db=vector_db, chunkin
 # ========================================================
 # Initialize PDF RAG Agent
 # ========================================================
-groq_model_name = st.selectbox("🧠 Select LLM Model", ["deepseek-r1-distill-llama-70b", "llama3-70b-8192"])
+
 pdf_rag_agent = Agent(
     model=Groq(id=groq_model_name),
     storage=SqliteAgentStorage(table_name=table_name_agent, db_file=agent_storage_file),
@@ -83,12 +115,12 @@ st.success("✅ Knowledge base loaded!")
 # ========================================================
 # Chat Interface with Streaming Effect
 # ========================================================
-st.subheader("💬 Provide your Product Facts and some description so that I can turn it into an effective Business Pitch to the sharks")
+st.subheader("💬 Provide your Product Facts and some Description so that I can turn it into an effective Business Pitch to the sharks")
 
-user_input = st.text_input("Enter your question:")
+user_input = st.text_input("Enter your facts below:")
 if st.button("Ask"):
     if user_input.strip() == "":
-        st.warning("⚠️ Please enter a question.")
+        st.warning("⚠️ No Input Detected.")
     else:
         st.markdown("### 🤖 AI Response:")
 
