@@ -25,8 +25,8 @@ os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 # ========================================================
 # Streamlit UI Header
 # ========================================================
-st.title("📄 AI-Powered PDF RAG Chatbot")
-st.markdown("Upload PDFs or use existing GitHub-hosted documents to ask AI-powered questions.")
+st.title("📄 MITB (Multi-Agent Intelligence for Tackling Business pitches) Chatbot")
+st.markdown("### 🚀 Welcome to MITB Chatbot! This chatbot is designed to generate business pitches from your information.")
 
 # ========================================================
 # Streamlit Sidebar
@@ -117,7 +117,7 @@ st.success("✅ Knowledge base loaded!")
 # ========================================================
 st.subheader("💬 Provide your Product Facts and some Description so that I can turn it into an effective Business Pitch to the sharks")
 
-user_input = st.text_input("Enter your pitch below:")
+user_input = st.text_input("Enter your facts below:")
 if st.button("Ask"):
     if user_input.strip() == "":
         st.warning("⚠️ No Input Detected.")
