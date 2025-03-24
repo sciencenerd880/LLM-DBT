@@ -34,7 +34,7 @@ import os
 
 # Load environment variables from .env file
 load_dotenv()
-os.environ["OPENAI_API_KEY"] = os.getenv(key="OPENAI_API_KEY")
+os.environ["OPENAI_API_KEY"] = "" # Insert API key
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
 
@@ -53,10 +53,10 @@ EDIT_REFERENCE_MODELS = [
     'qwen-qwq-32b',
     # 'gemma2-9b-it',
     'deepseek-r1-distill-llama-70b',
-    'llama3-70b-8192',
+    # 'llama3-70b-8192',
     # 'mixtral-8x7b-32768',
     'deepseek-r1-distill-qwen-32b', 
-    'mistral-saba-24b'
+    # 'mistral-saba-24b'
 ]
 
 # Other setups
@@ -119,7 +119,7 @@ def load_knowledge_base(
 
 # ======================================================== END: TO SET THE KNOWLEDGE BASE  ========================================================
 HBS_knowledge_base = load_knowledge_base()
-# HBS_knowledge_base.load(recreate=False) #comment if used
+HBS_knowledge_base.load(recreate=False) #comment if used
 
 def load_facts(relative_file_path="./all_processed_facts.txt"):
     """Facts generated and saved as a .txt file."""
@@ -199,17 +199,17 @@ class PitchOrchestrator:
             - Minimizes the stake given to investors.
             - Includes key terms (e.g., valuation, percentage equity offered, funding amount).
             - To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
-            """)
+        """)
         synthesizer = Agent(
             name="Pitch Synthesizer", 
             model=Groq(id=self.orchestrator),
-            response_model=SysthesizerResponse, #newly added to enfore response compliant
-            instructions="Combine inputs into a winning pitch.",
+            # response_model=SysthesizerResponse, #newly added to enfore response compliant
+            instructions=instructions_synthesizer,
             storage=SqliteAgentStorage(table_name="synthesizer_agent", db_file=agent_storage),
             ### /newly added
             knowledge= HBS_knowledge_base,
             search_knowledge=True, # not really required, agent will set as True
-            add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
+            # add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
             # enable_agentic_context=True, #If True, enable the team agent to update the team context and automatically send the team context to the members
             ### /newly added
             add_datetime_to_instructions=True,
@@ -236,7 +236,7 @@ class PitchOrchestrator:
         """Use an agent to break the main goal into subtasks dynamically."""
         subtask_agent = self.create_subtask_agent()
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
-        prompt += """Format your response as valid JSON without the json markdown:
+        prompt += """Format your response as valid JSON without the markdown:
         {
             "goal": "...",
             "subtasks": [
@@ -254,11 +254,12 @@ class PitchOrchestrator:
 
         # Validate and parse response using Pydantic
         try:
-            # # Since enforced response then commented out workarounds
-            # content = subtask_response.content#.replace("`", "")
+            # # Since enforced response then commented out workaround
+            content = subtask_response.content
+            content = content.split("</think>")[-1].strip()
             # #content = content.replace("json", "").strip()
-            # structured_output = OrchestratorResponse.model_validate_json(content)
-            print(subtask_response)
+            structured_output = OrchestratorResponse.model_validate_json(content)
+            # print("sanity:", structured_output)
         except Exception as e:
             print("Parsing Error:", e)
             print("Response:")
@@ -266,8 +267,8 @@ class PitchOrchestrator:
             raise ValueError("Invalid response format from subtask agent.")
 
         # subtasks = [task.strip() for task in subtask_response.content.split("\n") if task.strip()]
-        return structured_output.subtasks
-        # return subtask_response.content
+        return structured_output
+        # return subtask_response.content.subtasks
 
     def create_agents(self, subtasks, facts):
         """Create agents dynamically based on the subtasks."""
@@ -298,7 +299,7 @@ class PitchOrchestrator:
         synthesis_prompt = dedent("""\
         Using the agents output earlier, return a well-structured response in valid JSON format. **WARNING**: Ensure you follow the ### Response Format.
         ### Response Format
-        Return your response STRICTLY in valid JSON format with the following structure:
+        Return your response STRICTLY in valid JSON format with the following structure.:
         {
             "Pitch": "Your well-structured investment pitch here...",
             "Initial_Offer": {
@@ -309,23 +310,36 @@ class PitchOrchestrator:
             }
         }
         """)
+        # print(">>> Agent input:", results)
         for role, content in results.items():
             synthesis_prompt += f"- {role}: {content}\n"
         synthesizer_agent = self.create_synthesizer_agent()
         synthesizer_response = synthesizer_agent.run(synthesis_prompt)
         self.logs.append(synthesizer_response.metrics)
+        # print(synthesizer_response.content)
 
         try:
-            # content = synthesizer_response.content.replace("`", "")
-            # content = content.replace("json", "").strip()
-            # structured_output = SysthesizerResponse.model_validate_json(content)
-            pass
+            json_regex = re.compile(
+                r'\{.*\}',
+                re.DOTALL
+            )
+
+            # Extract JSON match
+            match = json_regex.search(synthesizer_response.content)
+            if match:
+                json_str = match.group()
+            else:
+                print("No JSON found.")
+            content = json_str.replace("`", "")
+            content = content.replace("json", "").strip()
+            structured_output = SysthesizerResponse.model_validate_json(content)
+            # pass
         except Exception as e:
             print("Parsing Synthesizer Error:", e)
             print("Response:")
             print(synthesizer_response.content)
             raise ValueError("Invalid response format from subtask agent.")
-        return synthesizer_response.content
+        return content
 
     def orchestrate(self, goal, facts):
         """Full pipeline: generate subtasks, create agents, execute, and synthesize pitch."""
@@ -432,10 +446,8 @@ class PitchEquipped(PitchEditor):
 
         # Validate and parse response using Pydantic
         try:
-            # print(subtask_response)
-            # content = subtask_response.content.replace("`", "").replace("json", "").strip()
-            # structured_output = OrchestratorResponse.model_validate_json(content)
             pass
+            # print(">>> sanity at orchestrator agent:", subtask_response)
         except Exception as e:
             print("Parsing Error:", e)
             print("Response:", subtask_response.content)
