@@ -33,7 +33,7 @@ os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
 # ============================== Streamlit UI ==============================
 st.title("📄 MITB is here for you.")
-st.markdown("### 🤖 xxxxxx")
+st.markdown("### 🤖 Come to us for all your pitching needs")
 
 st.sidebar.title("ℹ️ Instructions")
 st.sidebar.markdown(
@@ -157,7 +157,7 @@ if st.button("Ask"):
     if user_input.strip() == "":
         st.warning("⚠️ Please enter some input.")
     else:
-        st.markdown("### 🤖 AI Response:")
+        # st.markdown("### 🤖 AI Response:")
         pitch_agent = create_pitch_agent(selected_model)
 
         response_placeholder = st.empty()
@@ -169,10 +169,15 @@ if st.button("Ask"):
 
         try:
             import json
-            parsed = json.loads(response_obj.content)
-
+            # st.write("Raw content:", response_obj.content[7:-3])
+            if response_obj.content.startswith("```json"):
+                parsed = json.loads(response_obj.content[7:-3]) #removed ```json and ```
+            else:
+                parsed = json.loads(response_obj.content)
+            
             st.markdown("### 🎯 Pitch")
-            st.markdown(f"> {parsed['Pitch']}")
+            # st.markdown(f"> {parsed['Pitch']}")
+            st.text(parsed['Pitch'])
 
             st.markdown("---")
             st.markdown("### 💸 Investment Offer")
