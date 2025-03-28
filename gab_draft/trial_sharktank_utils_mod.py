@@ -33,8 +33,8 @@ import os
 
 
 # Load environment variables from .env file
-load_dotenv()
-os.environ["OPENAI_API_KEY"] = "" # Insert API key
+# load_dotenv()
+os.environ["OPENAI_API_KEY"] = ""
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
 
@@ -50,7 +50,7 @@ REFERENCE_MODELS = [
 ]
 
 EDIT_REFERENCE_MODELS = [
-    'qwen-qwq-32b',
+    # 'qwen-qwq-32b',
     # 'gemma2-9b-it',
     'deepseek-r1-distill-llama-70b',
     # 'llama3-70b-8192',
@@ -119,7 +119,7 @@ def load_knowledge_base(
 
 # ======================================================== END: TO SET THE KNOWLEDGE BASE  ========================================================
 HBS_knowledge_base = load_knowledge_base()
-HBS_knowledge_base.load(recreate=False) #comment if used
+# HBS_knowledge_base.load(recreate=False) #comment if used
 
 def load_facts(relative_file_path="./all_processed_facts.txt"):
     """Facts generated and saved as a .txt file."""
@@ -191,15 +191,12 @@ class PitchOrchestrator:
     
     def create_synthesizer_agent(self):
         """Instantiates the synthesizer agent for combining inputs"""
-        instructions_synthesizer = dedent("""\
+        instructions_synthesizer = """
         Combine inputs into a winning pitch.
-        ### Your Task:
-            Propose an **initial offer to investors** that:
-            - Raises as much equity as possible.
-            - Minimizes the stake given to investors.
-            - Includes key terms (e.g., valuation, percentage equity offered, funding amount).
-            - To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
-        """)
+        Your Task is to propose an initial offer to investors that:
+        Raises as much equity as possible, Minimizes the stake given to investors, Includes key terms (e.g., valuation, percentage equity offered, funding amount).
+        To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
+        """
         synthesizer = Agent(
             name="Pitch Synthesizer", 
             model=Groq(id=self.orchestrator),
@@ -236,7 +233,7 @@ class PitchOrchestrator:
         """Use an agent to break the main goal into subtasks dynamically."""
         subtask_agent = self.create_subtask_agent()
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
-        prompt += """Format your response as valid JSON without the markdown:
+        prompt += """Format your response strictly as a valid JSON without markdown:
         {
             "goal": "...",
             "subtasks": [
@@ -276,7 +273,7 @@ class PitchOrchestrator:
             agent_name = f"{i}"
             self.agents[agent_name] = Agent(
                 name=agent_name, 
-                model=Groq(id=random.choice(REFERENCE_MODELS), max_tokens=512), # limit agent output
+                model=Groq(id=random.choice(REFERENCE_MODELS), max_tokens=2048), # limit agent output
                 instructions=f"Given these facts: {facts}\n Do not hallucinate. Ensure strict adherence to facts. Keep it short. {subtask['name']}",
                 storage=SqliteAgentStorage(table_name="agent_name", db_file=agent_storage),
                 add_datetime_to_instructions=True,
@@ -296,10 +293,9 @@ class PitchOrchestrator:
 
     def synthesize_pitch(self, results):
         """Combine agent outputs into a final pitch."""
-        synthesis_prompt = dedent("""\
-        Using the agents output earlier, return a well-structured response in valid JSON format. **WARNING**: Ensure you follow the ### Response Format.
-        ### Response Format
-        Return your response STRICTLY in valid JSON format with the following structure.:
+        synthesis_prompt = """
+        Using the agents output earlier, synthesize a compelling pitch from the following inputs without adding new information.
+        Return your response STRICTLY in valid JSON format without markdown:
         {
             "Pitch": "Your well-structured investment pitch here...",
             "Initial_Offer": {
@@ -309,7 +305,7 @@ class PitchOrchestrator:
                 "Key_Terms": "Any additional key terms (optional)"
             }
         }
-        """)
+        """
         # print(">>> Agent input:", results)
         for role, content in results.items():
             synthesis_prompt += f"- {role}: {content}\n"
@@ -329,7 +325,8 @@ class PitchOrchestrator:
             if match:
                 json_str = match.group()
             else:
-                print("No JSON found.")
+                json_str = "{" + synthesizer_response.content.split("{")[-1].strip()
+
             content = json_str.replace("`", "")
             content = content.replace("json", "").strip()
             structured_output = SysthesizerResponse.model_validate_json(content)
@@ -367,7 +364,7 @@ class PitchEditor(PitchOrchestrator):
         """
         editor = Agent(
             name="Pitch Editor", 
-            model=Groq(id=self.editor, max_tokens=1024),
+            model=Groq(id=self.editor, max_tokens=2048),
             instructions=instruction,
             storage=SqliteAgentStorage(table_name="director_agent", db_file=agent_storage),
             add_datetime_to_instructions=True,
@@ -426,7 +423,7 @@ class PitchEquipped(PitchEditor):
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
         if tools_available:
             tool_names = [tool.name for tool in tools_available]  # Convert tool objects to string
-            prompt += f"You have the following tools at your disposal: {tool_names}\nAssign them to your subtasks strategically."
+            prompt += f"You have the following tools at your disposal: {tool_names}\nAssign them to your subtasks strategically. Not all agents requuire tools and can perform other defined tasks."
 
         prompt += """ Format your response as valid JSON without the json markdown:
         {
