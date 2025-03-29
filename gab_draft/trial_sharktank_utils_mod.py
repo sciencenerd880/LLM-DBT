@@ -55,7 +55,7 @@ EDIT_REFERENCE_MODELS = [
     'deepseek-r1-distill-llama-70b',
     # 'llama3-70b-8192',
     # 'mixtral-8x7b-32768',
-    'deepseek-r1-distill-qwen-32b', 
+    # 'deepseek-r1-distill-qwen-32b', 
     # 'mistral-saba-24b'
 ]
 
@@ -193,22 +193,19 @@ class PitchOrchestrator:
         """Instantiates the synthesizer agent for combining inputs"""
         instructions_synthesizer = """
         Combine inputs into a winning pitch.
-        Your Task is to propose an initial offer to investors that:
-        Raises as much equity as possible, Minimizes the stake given to investors, Includes key terms (e.g., valuation, percentage equity offered, funding amount).
-        To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
         """
         synthesizer = Agent(
             name="Pitch Synthesizer", 
-            model=Groq(id=self.orchestrator),
+            model=Groq(id=self.orchestrator, temperature=0.5),
             # response_model=SysthesizerResponse, #newly added to enfore response compliant
             instructions=instructions_synthesizer,
             storage=SqliteAgentStorage(table_name="synthesizer_agent", db_file=agent_storage),
             ### /newly added
-            knowledge= HBS_knowledge_base,
-            search_knowledge=True, # not really required, agent will set as True
-            # add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
-            # enable_agentic_context=True, #If True, enable the team agent to update the team context and automatically send the team context to the members
-            ### /newly added
+            # knowledge= HBS_knowledge_base,
+            # search_knowledge=True, # not really required, agent will set as True
+            # # add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
+            # # enable_agentic_context=True, #If True, enable the team agent to update the team context and automatically send the team context to the members
+            # ### /newly added
             add_datetime_to_instructions=True,
             add_history_to_messages=False,
         )
@@ -217,16 +214,15 @@ class PitchOrchestrator:
     def tool_box(self):
         """Contains the tools that are available to the agent"""
         calculator_tool= CalculatorTools(
-                add=True,
-                subtract=True,
-                multiply=True,
-                divide=True,
-                exponentiate=True,
-                factorial=True,
-                is_prime=True,
-                square_root=True,
-                 )
-
+            add=True,
+            subtract=True,
+            multiply=True,
+            divide=True,
+            exponentiate=True,
+            factorial=True,
+            is_prime=True,
+            square_root=True,
+        )
         return [DuckDuckGoTools(), calculator_tool]
 
     def generate_subtasks(self, goal, facts):
@@ -295,7 +291,7 @@ class PitchOrchestrator:
         """Combine agent outputs into a final pitch."""
         synthesis_prompt = """
         Using the agents output earlier, synthesize a compelling pitch from the following inputs without adding new information.
-        Return your response STRICTLY in valid JSON format without markdown:
+        Return your response in a valid JSON format without markdown:
         {
             "Pitch": "Your well-structured investment pitch here...",
             "Initial_Offer": {
@@ -303,6 +299,39 @@ class PitchOrchestrator:
                 "Equity_Offered": "Percentage of equity offered to investors (e.g., <<insert the estimated percentage here>>)",
                 "Funding_Amount": "The amount of funding requested (e.g., <<insert the estimated funding amount here>>)",
                 "Key_Terms": "Any additional key terms (optional)"
+            }
+        }
+
+        Here is an example output required:
+        {
+            "Pitch": "Beauty Pops is revolutionizing the skincare industry with its groundbreaking combination of cryotherapy and nourishing face masks. Our innovative product tightens and brightens the skin while providing deep nourishment through all-natural, antioxidant-rich ingredients. The edible components, such as bananas and aloe vera, ensure safety and appeal to the growing market of health-conscious consumers seeking natural skincare solutions. Our target market is women aged 18 to 35, active on social media platforms like TikTok, who are drawn to innovative, affordable, and easy-to-use products that deliver visible results. With your investment, we plan to scale our production to meet growing demand, expand our marketing efforts on social media, and explore strategic retail partnerships to further our brand's reach and visibility. Join us in bringing this unique and effective skincare solution to the masses.",
+            "Initial_Offer": {
+                "Valuation": "$5 million",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$500,000",
+                "Key_Terms": "Funds will be allocated to increase production capacity, enhance social media marketing, and establish retail partnerships."
+            }
+        }
+
+        Here is another example:
+        {
+            "Pitch": "Banana Loca is revolutionizing the kitchen experience by addressing common inefficiencies in food preparation. Our innovative gadget is specifically designed to core and stuff bananas while they're still in their peel, a task that has long been cumbersome and messy. Beyond bananas, Banana Loca is versatile enough to handle tasks like filling doughnuts, churros, and decorating cakes or cupcakes, making it a must-have for any kitchen. Unlike traditional corers or single-purpose tools, Banana Loca offers a unique, multi-functional solution that enhances both everyday cooking and baking. Our revenue growth strategy focuses on capturing a significant share of the kitchen gadget market through strategic partnerships, online marketing, and retail distribution. We believe that with your investment, we can scale production and expand our market reach to make Banana Loca a household name.",
+            "Initial_Offer": {
+                "Valuation": "$5 million",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$500,000",
+                "Key_Terms": "Exclusive rights for the first 5 years, priority on future funding rounds"
+            }
+        }
+
+        Here is another example:
+        {    
+            "Pitch": "Welcome, esteemed investors, to an extraordinary opportunity to join Pooch Paper, the innovative leader in sustainable pet products. With a strong track record of nearly $50,000 in sales since our inception and an impressive 48% product margin, we are poised for rapid scaling. Our recent expansion into 1,061 Target stores nationwide underscores our market validation and growth potential. We are seeking a $25,000 investment in exchange for 10% equity, valuing our company at $250,000 pre-money. These funds will be strategically allocated to scale production, enhance our marketing efforts, build inventory, and amplify our sustainability campaign. Join us in capitalizing on the booming pet industry's shift towards eco-friendly solutions. Together, we can make a significant impact and deliver substantial returns.",
+            "Initial_Offer": {
+                "Valuation": "$250,000 pre-money valuation",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$25,000",
+                "Key_Terms": "Funds will be used for production scaling, marketing, inventory build-up, and a sustainability campaign."
             }
         }
         """
