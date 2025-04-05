@@ -33,8 +33,8 @@ import os
 
 
 # Load environment variables from .env file
-load_dotenv()
-os.environ["OPENAI_API_KEY"] = os.getenv(key="OPENAI_API_KEY")
+# load_dotenv()
+os.environ["OPENAI_API_KEY"] = ""
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
 
@@ -50,13 +50,13 @@ REFERENCE_MODELS = [
 ]
 
 EDIT_REFERENCE_MODELS = [
-    'qwen-qwq-32b',
+    # 'qwen-qwq-32b',
     # 'gemma2-9b-it',
     'deepseek-r1-distill-llama-70b',
-    'llama3-70b-8192',
+    # 'llama3-70b-8192',
     # 'mixtral-8x7b-32768',
-    'deepseek-r1-distill-qwen-32b', 
-    'mistral-saba-24b'
+    # 'deepseek-r1-distill-qwen-32b', 
+    # 'mistral-saba-24b'
 ]
 
 # Other setups
@@ -191,27 +191,21 @@ class PitchOrchestrator:
     
     def create_synthesizer_agent(self):
         """Instantiates the synthesizer agent for combining inputs"""
-        instructions_synthesizer = dedent("""\
+        instructions_synthesizer = """
         Combine inputs into a winning pitch.
-        ### Your Task:
-            Propose an **initial offer to investors** that:
-            - Raises as much equity as possible.
-            - Minimizes the stake given to investors.
-            - Includes key terms (e.g., valuation, percentage equity offered, funding amount).
-            - To obtain the funding amount, you need to use the provided calculator tool to compute by using the 'Equity_Offered' and 'Valuation'.
-            """)
+        """
         synthesizer = Agent(
             name="Pitch Synthesizer", 
-            model=Groq(id=self.orchestrator),
-            response_model=SysthesizerResponse, #newly added to enfore response compliant
-            instructions="Combine inputs into a winning pitch.",
+            model=Groq(id=self.orchestrator, temperature=0.5),
+            # response_model=SysthesizerResponse, #newly added to enfore response compliant
+            instructions=instructions_synthesizer,
             storage=SqliteAgentStorage(table_name="synthesizer_agent", db_file=agent_storage),
             ### /newly added
-            knowledge= HBS_knowledge_base,
-            search_knowledge=True, # not really required, agent will set as True
-            add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
-            # enable_agentic_context=True, #If True, enable the team agent to update the team context and automatically send the team context to the members
-            ### /newly added
+            # knowledge= HBS_knowledge_base,
+            # search_knowledge=True, # not really required, agent will set as True
+            # # add_references=True, # enable RAG by adding references from AgentKnowledge to the user prompt.
+            # # enable_agentic_context=True, #If True, enable the team agent to update the team context and automatically send the team context to the members
+            # ### /newly added
             add_datetime_to_instructions=True,
             add_history_to_messages=False,
         )
@@ -220,23 +214,22 @@ class PitchOrchestrator:
     def tool_box(self):
         """Contains the tools that are available to the agent"""
         calculator_tool= CalculatorTools(
-                add=True,
-                subtract=True,
-                multiply=True,
-                divide=True,
-                exponentiate=True,
-                factorial=True,
-                is_prime=True,
-                square_root=True,
-                 )
-
+            add=True,
+            subtract=True,
+            multiply=True,
+            divide=True,
+            exponentiate=True,
+            factorial=True,
+            is_prime=True,
+            square_root=True,
+        )
         return [DuckDuckGoTools(), calculator_tool]
 
     def generate_subtasks(self, goal, facts):
         """Use an agent to break the main goal into subtasks dynamically."""
         subtask_agent = self.create_subtask_agent()
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
-        prompt += """Format your response as valid JSON without the json markdown:
+        prompt += """Format your response strictly as a valid JSON without markdown:
         {
             "goal": "...",
             "subtasks": [
@@ -254,11 +247,12 @@ class PitchOrchestrator:
 
         # Validate and parse response using Pydantic
         try:
-            # # Since enforced response then commented out workarounds
-            # content = subtask_response.content#.replace("`", "")
+            # # Since enforced response then commented out workaround
+            content = subtask_response.content
+            content = content.split("</think>")[-1].strip()
             # #content = content.replace("json", "").strip()
-            # structured_output = OrchestratorResponse.model_validate_json(content)
-            print(subtask_response)
+            structured_output = OrchestratorResponse.model_validate_json(content)
+            # print("sanity:", structured_output)
         except Exception as e:
             print("Parsing Error:", e)
             print("Response:")
@@ -266,8 +260,8 @@ class PitchOrchestrator:
             raise ValueError("Invalid response format from subtask agent.")
 
         # subtasks = [task.strip() for task in subtask_response.content.split("\n") if task.strip()]
-        return structured_output.subtasks
-        # return subtask_response.content
+        return structured_output
+        # return subtask_response.content.subtasks
 
     def create_agents(self, subtasks, facts):
         """Create agents dynamically based on the subtasks."""
@@ -275,7 +269,7 @@ class PitchOrchestrator:
             agent_name = f"{i}"
             self.agents[agent_name] = Agent(
                 name=agent_name, 
-                model=Groq(id=random.choice(REFERENCE_MODELS), max_tokens=512), # limit agent output
+                model=Groq(id=random.choice(REFERENCE_MODELS), max_tokens=2048), # limit agent output
                 instructions=f"Given these facts: {facts}\n Do not hallucinate. Ensure strict adherence to facts. Keep it short. {subtask['name']}",
                 storage=SqliteAgentStorage(table_name="agent_name", db_file=agent_storage),
                 add_datetime_to_instructions=True,
@@ -295,10 +289,9 @@ class PitchOrchestrator:
 
     def synthesize_pitch(self, results):
         """Combine agent outputs into a final pitch."""
-        synthesis_prompt = dedent("""\
-        Using the agents output earlier, return a well-structured response in valid JSON format. **WARNING**: Ensure you follow the ### Response Format.
-        ### Response Format
-        Return your response STRICTLY in valid JSON format with the following structure:
+        synthesis_prompt = """
+        Using the agents output earlier, synthesize a compelling pitch from the following inputs without adding new information.
+        Return your response in a valid JSON format without markdown:
         {
             "Pitch": "Your well-structured investment pitch here...",
             "Initial_Offer": {
@@ -308,24 +301,71 @@ class PitchOrchestrator:
                 "Key_Terms": "Any additional key terms (optional)"
             }
         }
-        """)
+
+        Here is an example output required:
+        {
+            "Pitch": "Beauty Pops is revolutionizing the skincare industry with its groundbreaking combination of cryotherapy and nourishing face masks. Our innovative product tightens and brightens the skin while providing deep nourishment through all-natural, antioxidant-rich ingredients. The edible components, such as bananas and aloe vera, ensure safety and appeal to the growing market of health-conscious consumers seeking natural skincare solutions. Our target market is women aged 18 to 35, active on social media platforms like TikTok, who are drawn to innovative, affordable, and easy-to-use products that deliver visible results. With your investment, we plan to scale our production to meet growing demand, expand our marketing efforts on social media, and explore strategic retail partnerships to further our brand's reach and visibility. Join us in bringing this unique and effective skincare solution to the masses.",
+            "Initial_Offer": {
+                "Valuation": "$5 million",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$500,000",
+                "Key_Terms": "Funds will be allocated to increase production capacity, enhance social media marketing, and establish retail partnerships."
+            }
+        }
+
+        Here is another example:
+        {
+            "Pitch": "Banana Loca is revolutionizing the kitchen experience by addressing common inefficiencies in food preparation. Our innovative gadget is specifically designed to core and stuff bananas while they're still in their peel, a task that has long been cumbersome and messy. Beyond bananas, Banana Loca is versatile enough to handle tasks like filling doughnuts, churros, and decorating cakes or cupcakes, making it a must-have for any kitchen. Unlike traditional corers or single-purpose tools, Banana Loca offers a unique, multi-functional solution that enhances both everyday cooking and baking. Our revenue growth strategy focuses on capturing a significant share of the kitchen gadget market through strategic partnerships, online marketing, and retail distribution. We believe that with your investment, we can scale production and expand our market reach to make Banana Loca a household name.",
+            "Initial_Offer": {
+                "Valuation": "$5 million",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$500,000",
+                "Key_Terms": "Exclusive rights for the first 5 years, priority on future funding rounds"
+            }
+        }
+
+        Here is another example:
+        {    
+            "Pitch": "Welcome, esteemed investors, to an extraordinary opportunity to join Pooch Paper, the innovative leader in sustainable pet products. With a strong track record of nearly $50,000 in sales since our inception and an impressive 48% product margin, we are poised for rapid scaling. Our recent expansion into 1,061 Target stores nationwide underscores our market validation and growth potential. We are seeking a $25,000 investment in exchange for 10% equity, valuing our company at $250,000 pre-money. These funds will be strategically allocated to scale production, enhance our marketing efforts, build inventory, and amplify our sustainability campaign. Join us in capitalizing on the booming pet industry's shift towards eco-friendly solutions. Together, we can make a significant impact and deliver substantial returns.",
+            "Initial_Offer": {
+                "Valuation": "$250,000 pre-money valuation",
+                "Equity_Offered": "10%",
+                "Funding_Amount": "$25,000",
+                "Key_Terms": "Funds will be used for production scaling, marketing, inventory build-up, and a sustainability campaign."
+            }
+        }
+        """
+        # print(">>> Agent input:", results)
         for role, content in results.items():
             synthesis_prompt += f"- {role}: {content}\n"
         synthesizer_agent = self.create_synthesizer_agent()
         synthesizer_response = synthesizer_agent.run(synthesis_prompt)
         self.logs.append(synthesizer_response.metrics)
+        # print(synthesizer_response.content)
 
         try:
-            # content = synthesizer_response.content.replace("`", "")
-            # content = content.replace("json", "").strip()
-            # structured_output = SysthesizerResponse.model_validate_json(content)
-            pass
+            json_regex = re.compile(
+                r'\{.*\}',
+                re.DOTALL
+            )
+
+            # Extract JSON match
+            match = json_regex.search(synthesizer_response.content)
+            if match:
+                json_str = match.group()
+            else:
+                json_str = "{" + synthesizer_response.content.split("{")[-1].strip()
+
+            content = json_str.replace("`", "")
+            content = content.replace("json", "").strip()
+            structured_output = SysthesizerResponse.model_validate_json(content)
+            # pass
         except Exception as e:
             print("Parsing Synthesizer Error:", e)
             print("Response:")
             print(synthesizer_response.content)
             raise ValueError("Invalid response format from subtask agent.")
-        return synthesizer_response.content
+        return content
 
     def orchestrate(self, goal, facts):
         """Full pipeline: generate subtasks, create agents, execute, and synthesize pitch."""
@@ -353,7 +393,7 @@ class PitchEditor(PitchOrchestrator):
         """
         editor = Agent(
             name="Pitch Editor", 
-            model=Groq(id=self.editor, max_tokens=1024),
+            model=Groq(id=self.editor, max_tokens=2048),
             instructions=instruction,
             storage=SqliteAgentStorage(table_name="director_agent", db_file=agent_storage),
             add_datetime_to_instructions=True,
@@ -412,7 +452,7 @@ class PitchEquipped(PitchEditor):
         prompt = f"Given facts: {facts}\nBreak down the following goal into 2-3 key subtasks:\n\nGoal: {goal}\n\nSubtasks:"
         if tools_available:
             tool_names = [tool.name for tool in tools_available]  # Convert tool objects to string
-            prompt += f"You have the following tools at your disposal: {tool_names}\nAssign them to your subtasks strategically."
+            prompt += f"You have the following tools at your disposal: {tool_names}\nAssign them to your subtasks strategically. Not all agents requuire tools and can perform other defined tasks."
 
         prompt += """ Format your response as valid JSON without the json markdown:
         {
@@ -432,10 +472,8 @@ class PitchEquipped(PitchEditor):
 
         # Validate and parse response using Pydantic
         try:
-            # print(subtask_response)
-            # content = subtask_response.content.replace("`", "").replace("json", "").strip()
-            # structured_output = OrchestratorResponse.model_validate_json(content)
             pass
+            # print(">>> sanity at orchestrator agent:", subtask_response)
         except Exception as e:
             print("Parsing Error:", e)
             print("Response:", subtask_response.content)
